@@ -56,8 +56,9 @@ class Board {
         Board.board[7][6].piece = new Knight("white", 7, 6);
         Board.board[7][7].piece = new Rook("white", 7, 7);
 
-        console.log("It is white's turn.");
         this.displayConsoleBoard();
+        console.log(`
+            It is white's turn.`);
     }
 
     // static resetBoard() {

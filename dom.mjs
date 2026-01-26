@@ -1,9 +1,19 @@
 import { Board } from "./board.mjs";
-import { listOfMoves } from "./board-rules.mjs";
+import { listOfMoves } from "./board-interactions.mjs";
+import { Piece } from "./pieces.mjs";
+import { BoardInteractions } from "./board-interactions.mjs";
 
 
 const pieceButtonMap = new Map();
 const squareDivMap = new Map();
+
+function updateElementMap(obj, element) {
+    element.dataset.id = obj.id;
+
+    obj instanceof Piece ?
+    pieceButtonMap.set(obj.id, obj)
+    : squareDivMap.set(obj.id, obj);
+}
 
 class DomEl {
     static getSquareDiv(square) {
@@ -12,8 +22,7 @@ class DomEl {
         squareDiv.dataset.column = square.column;
         squareDiv.classList.add("square", square.color);
 
-        squareDiv.dataset.id = square.id;
-        squareDivMap.set(square.id, square);
+        updateElementMap(square, squareDiv);
 
         return squareDiv;
     }
@@ -29,19 +38,27 @@ class DomEl {
         pieceButton.dataset.row = piece.position[0];
         pieceButton.dataset.column = piece.position[1];
 
-        pieceButton.dataset.id = piece.id;
-        pieceButtonMap.set(piece.id, piece);
+        updateElementMap(piece, pieceButton);
 
         return pieceButton;
     }
 }
 
 class DisplayController {
+    static #boardDiv = document.querySelector(".board");
     static get boardDiv() {
-        return document.querySelector(".board");
+        return this.#boardDiv;
     }
 
-    static activePlayer = "white";
+    static #activePlayer = "white";
+
+    static get activeKing() {
+        let activeKingButton = 
+            DisplayController.boardDiv.querySelector(`[data-name = "King"][data-color = ${this.#activePlayer}]`);
+        let activeId = activeKingButton.dataset.id;
+        let activeKing = pieceButtonMap.get(activeId);
+        return activeKing;
+    }
 
     static setEmptyBoard() {
         Board.board.forEach( 
@@ -60,7 +77,6 @@ class DisplayController {
             }
         );
     }
-
     static printPieces() {
         for (const rowDiv of DisplayController.boardDiv.children) {
             for (const squareDiv of rowDiv.children) {
@@ -73,7 +89,6 @@ class DisplayController {
             }
         }
     }
-
     static emptyBoard () {
         for (const rowDiv of DisplayController.boardDiv.children) {
             for (const squareDiv of rowDiv.children) {
@@ -85,7 +100,7 @@ class DisplayController {
     static activatePieceButton(event) {
         let pieceButton = event.target;
         if (!pieceButton.classList.contains("piece")) return;
-        if (pieceButton.dataset.color !== this.activePlayer) return;
+        if (pieceButton.dataset.color !== this.#activePlayer) return;
 
         if (!DisplayController.boardDiv.querySelector(".active")) {
             pieceButton.classList.add("active");
@@ -100,11 +115,10 @@ class DisplayController {
                 }
         }
     }
-
     static moveOrCaptureButton(event) {
         let activePieceButton = DisplayController.boardDiv.querySelector(".active");
         if (!activePieceButton) return;
-        if (activePieceButton.dataset.color !== this.activePlayer) return;
+        if (activePieceButton.dataset.color !== this.#activePlayer) return;
 
         let newPosition = event.target;
         
@@ -114,7 +128,8 @@ class DisplayController {
         let activeId = activePieceButton.dataset.id;
         let activePiece = pieceButtonMap.get(activeId);
 
-        if (activePiece.move(row, column) || activePiece.capture(row, column)) {
+        if (BoardInteractions.rearrangeBoardPieces(Board.board, activePiece, row, column)) {
+                
                 this.emptyBoard();
                 this.printPieces();
 
@@ -125,16 +140,18 @@ class DisplayController {
                 this.updateListOfMoves(activePiece, row, column);
                 this.updateActivePlayer();
                 this.removeHighlight();
-                Board.displayConsoleBoard();
+                // Board.displayConsoleBoard();
         }
     }
+
     static updateListOfMoves(activePiece, row, column) {
-        let move = {player: this.activePlayer, piece: activePiece, row, column};
+        let move = {player: this.#activePlayer, piece: activePiece, row, column};
         listOfMoves.push(move);
     }
     static updateActivePlayer() {
-        this.activePlayer = this.activePlayer === "white" ? "black" : "white";
-        console.log(`It is ${this.activePlayer}'s turn.`);
+        this.#activePlayer = this.#activePlayer === "white" ? "black" : "white";
+        console.log(`
+            It is ${this.#activePlayer}'s turn.`);
     }
 
     static highlightHypotheticalPaths() {
@@ -151,7 +168,6 @@ class DisplayController {
             }
         );
     }
-
     static removeHighlight() {
         let squares = DisplayController.boardDiv.querySelectorAll(".hypotheticalPosition");
         squares.forEach(
@@ -163,9 +179,9 @@ class DisplayController {
         DisplayController.boardDiv.addEventListener("click", this.activatePieceButton.bind(DisplayController));
         DisplayController.boardDiv.addEventListener("click", this.highlightHypotheticalPaths.bind(DisplayController));
         DisplayController.boardDiv.addEventListener("click", this.moveOrCaptureButton.bind(DisplayController));
-        DisplayController.boardDiv.addEventListener("click", this.moveOrCaptureButton.bind(DisplayController));
     }
 }
+
 
 Board.setEmptyBoard();
 Board.setInitialPositions();
