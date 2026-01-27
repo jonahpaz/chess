@@ -1,11 +1,11 @@
 class Piece {
     constructor(row, column) {
-        this.position = [row, column];
         this.initialPosition = [row, column];
-        this.lastPosition = [row, column];
+        this.position = this.initialPosition;
+        this.lastPosition = this.initialPosition;
         this.id = crypto.randomUUID();
     }
-    
+
     move(row, column) { 
         let rowChange = this.getDisplacement(this, row, column)[0];
         let columnChange = this.getDisplacement(this, row, column)[1];
@@ -57,7 +57,7 @@ class Pawn extends Piece{
             if (Math.abs(rowChange) === 1) {
                 return true;
             } else if (Math.abs(rowChange) === 2 
-                && this.initialPosition[0] === this.position[0]) {  
+                       && this.initialPosition[0] === this.position[0]) {  
                 return true;
             }
         } else {return false}
@@ -68,7 +68,6 @@ class Pawn extends Piece{
         if (Math.abs(columnChange) === 1 && Math.abs(rowChange) === 1) {
             return true;
         } else {return false}
-
     }
 }
 
@@ -101,11 +100,13 @@ class Knight extends Piece {
 }
 Knight.prototype.legalCaptureDisplacement = Knight.prototype.legalMoveDisplacement;
 
+const rooksMap = new Map();
 class Rook extends Piece {
     constructor(color, row, column) {
         super(row, column);
         this.name = "Rook";
         this.color = color;
+        rooksMap.set(`${this.initialPosition[1]}-${this.color}`, this);
     }
     legalMoveDisplacement(rowChange, columnChange) {
         if ((Math.abs(rowChange) > 0 && columnChange === 0) ||
@@ -142,6 +143,14 @@ class King extends Piece {
         kingsMap.set(this.color, this);
     }
     legalMoveDisplacement(rowChange, columnChange) {
+        if (this.legalTypicalDisplacement(rowChange, columnChange)) {
+            return true;
+        } else if (rowChange === 0 && Math.abs(columnChange) === 2
+                   && this.initialPosition === this.position) {
+            return true;
+        } else {return false}
+    }
+    legalTypicalDisplacement(rowChange, columnChange){
         if ((Math.abs(rowChange) === 1 && Math.abs(columnChange) === 1) ||
             (Math.abs(rowChange) === 1 && columnChange === 0) ||
             (rowChange === 0 && Math.abs(columnChange) === 1))  {
@@ -149,7 +158,6 @@ class King extends Piece {
         } else {return false}
     }
 }
-King.prototype.legalCaptureDisplacement = King.prototype.legalMoveDisplacement;
+King.prototype.legalCaptureDisplacement = King.prototype.legalTypicalDisplacement;
 
-
-export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, kingsMap }
+export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, kingsMap, rooksMap }

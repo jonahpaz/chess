@@ -1,6 +1,6 @@
 import { Board } from "./board.mjs";
 import { listOfMoves } from "./board-interactions.mjs";
-import { Piece } from "./pieces.mjs";
+import { King, Piece } from "./pieces.mjs";
 import { BoardInteractions } from "./board-interactions.mjs";
 
 
@@ -52,29 +52,77 @@ class DisplayController {
 
     static #activePlayer = "white";
 
-    static get activeKing() {
-        let activeKingButton = 
-            DisplayController.boardDiv.querySelector(`[data-name = "King"][data-color = ${this.#activePlayer}]`);
-        let activeId = activeKingButton.dataset.id;
-        let activeKing = pieceButtonMap.get(activeId);
-        return activeKing;
+
+    static setListeners() {
+        DisplayController.boardDiv.addEventListener("click", this.activatePieceButton.bind(DisplayController));
+        DisplayController.boardDiv.addEventListener("click", this.highlightHypotheticalPaths.bind(DisplayController));
+        DisplayController.boardDiv.addEventListener("click", this.moveOrCaptureButton.bind(DisplayController));
+    }
+    static activatePieceButton(event) {
+        let pieceButton = event.target;
+        if (!pieceButton.classList.contains("piece")) return;
+        if (pieceButton.dataset.color !== this.#activePlayer) return;
+
+        if (!DisplayController.boardDiv.querySelector(".active")) {
+            pieceButton.classList.add("active");
+
+        } else {
+            let lastActiveButton = DisplayController.boardDiv.querySelector(".active");
+
+                if (lastActiveButton.dataset.color === pieceButton.dataset.color) {
+                    lastActiveButton.classList.remove("active");
+                    pieceButton.classList.add("active");
+                    this.removeHighlight();
+                }
+        }
+    }
+    static highlightHypotheticalPaths() {
+        let activeButton = DisplayController.boardDiv.querySelector(".active");
+        if (!activeButton) return;
+        let activePiece = pieceButtonMap.get(activeButton.dataset.id);
+        let positions = BoardInteractions.getPossibleLegalMoves(Board.board, activePiece);
+        positions.forEach(
+            position => {
+                let row = position[0];
+                let column = position[1];
+                let square = DisplayController.boardDiv.children[row].children[column];
+                square.classList.add("hypotheticalPosition");
+            }
+        );
+    }
+    static moveOrCaptureButton(event) {
+        let activePieceButton = DisplayController.boardDiv.querySelector(".active");
+        if (!activePieceButton) return;
+        if (activePieceButton.dataset.color !== this.#activePlayer) return;
+
+        let newPosition = event.target;
+        
+        let row = +newPosition.dataset.row;
+        let column = +newPosition.dataset.column;
+
+        let activeId = activePieceButton.dataset.id;
+        let activePiece = pieceButtonMap.get(activeId);
+
+        if (BoardInteractions.boardUpdate(Board.board, activePiece, row, column)) {
+                
+                this.emptyBoard();
+                this.printPieces();
+
+                activePieceButton.dataset.row = row;
+                activePieceButton.dataset.column = column;
+                activePieceButton.classList.remove("active");
+
+                this.updateListOfMoves(activePiece, row, column);
+                this.updateActivePlayer();
+                this.removeHighlight();
+        }
     }
 
-    static setEmptyBoard() {
-        Board.board.forEach( 
-            row => {
-                let rowDiv = document.createElement("div");
-                rowDiv.classList.add("row");
 
-                row.forEach(
-                    square => {
-                        let squareDiv = DomEl.getSquareDiv(square);
-                        rowDiv.appendChild(squareDiv);
-                    }
-                );
-
-                DisplayController.boardDiv.appendChild(rowDiv);
-            }
+    static removeHighlight() {
+        let squares = DisplayController.boardDiv.querySelectorAll(".hypotheticalPosition");
+        squares.forEach(
+            square => square.classList.remove("hypotheticalPosition")
         );
     }
     static printPieces() {
@@ -96,53 +144,7 @@ class DisplayController {
             }
         }
     }
-    
-    static activatePieceButton(event) {
-        let pieceButton = event.target;
-        if (!pieceButton.classList.contains("piece")) return;
-        if (pieceButton.dataset.color !== this.#activePlayer) return;
 
-        if (!DisplayController.boardDiv.querySelector(".active")) {
-            pieceButton.classList.add("active");
-
-        } else {
-            let lastActiveButton = DisplayController.boardDiv.querySelector(".active");
-
-                if (lastActiveButton.dataset.color === pieceButton.dataset.color) {
-                    lastActiveButton.classList.remove("active");
-                    pieceButton.classList.add("active");
-                    this.removeHighlight();
-                }
-        }
-    }
-    static moveOrCaptureButton(event) {
-        let activePieceButton = DisplayController.boardDiv.querySelector(".active");
-        if (!activePieceButton) return;
-        if (activePieceButton.dataset.color !== this.#activePlayer) return;
-
-        let newPosition = event.target;
-        
-        let row = +newPosition.dataset.row;
-        let column = +newPosition.dataset.column;
-
-        let activeId = activePieceButton.dataset.id;
-        let activePiece = pieceButtonMap.get(activeId);
-
-        if (BoardInteractions.rearrangeBoardPieces(Board.board, activePiece, row, column)) {
-                
-                this.emptyBoard();
-                this.printPieces();
-
-                activePieceButton.dataset.row = row;
-                activePieceButton.dataset.column = column;
-                activePieceButton.classList.remove("active");
-
-                this.updateListOfMoves(activePiece, row, column);
-                this.updateActivePlayer();
-                this.removeHighlight();
-                // Board.displayConsoleBoard();
-        }
-    }
 
     static updateListOfMoves(activePiece, row, column) {
         let move = {player: this.#activePlayer, piece: activePiece, row, column};
@@ -153,32 +155,31 @@ class DisplayController {
         console.log(`
             It is ${this.#activePlayer}'s turn.`);
     }
+    static get activeKing() {
+        let activeKingButton = 
+            DisplayController.boardDiv.querySelector(`[data-name = "King"][data-color = ${this.#activePlayer}]`);
+        let activeId = activeKingButton.dataset.id;
+        let activeKing = pieceButtonMap.get(activeId);
+        return activeKing;
+    }
 
-    static highlightHypotheticalPaths() {
-        let activeButton = DisplayController.boardDiv.querySelector(".active");
-        if (!activeButton) return;
-        let activePiece = pieceButtonMap.get(activeButton.dataset.id);
-        let positions = activePiece.getHypotheticalMovesAndCaptures();
-        positions.forEach(
-            position => {
-                let row = position[0];
-                let column = position[1];
-                let square = DisplayController.boardDiv.children[row].children[column];
-                square.classList.add("hypotheticalPosition");
+
+    static setEmptyBoard() {
+        Board.board.forEach( 
+            row => {
+                let rowDiv = document.createElement("div");
+                rowDiv.classList.add("row");
+
+                row.forEach(
+                    square => {
+                        let squareDiv = DomEl.getSquareDiv(square);
+                        rowDiv.appendChild(squareDiv);
+                    }
+                );
+
+                DisplayController.boardDiv.appendChild(rowDiv);
             }
         );
-    }
-    static removeHighlight() {
-        let squares = DisplayController.boardDiv.querySelectorAll(".hypotheticalPosition");
-        squares.forEach(
-            square => square.classList.remove("hypotheticalPosition")
-        );
-    }
-
-    static setListeners() {
-        DisplayController.boardDiv.addEventListener("click", this.activatePieceButton.bind(DisplayController));
-        DisplayController.boardDiv.addEventListener("click", this.highlightHypotheticalPaths.bind(DisplayController));
-        DisplayController.boardDiv.addEventListener("click", this.moveOrCaptureButton.bind(DisplayController));
     }
 }
 

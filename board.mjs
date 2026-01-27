@@ -85,4 +85,14 @@ class Board {
     }
 }
 
+const alphabet = "abcdefgh";
+
+function numToLetterStringMethod(n) {
+    return alphabet.charAt(n-1); 
+} //to refactor the board
+
 export { Board }
+
+
+//alphabetical columns and nummerical rows [a,1];
+//refactor everything to go along the traditional board naming system uuhgg...
