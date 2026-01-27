@@ -25,6 +25,13 @@ body {
     border: 1rem solid rgb(255, 166, 0);
     /* transform: rotate(180deg); */
 }
+@media screen and (max-width: 450px) {
+  .board {
+    height: 100vw;
+    width: 100vw;
+    border: none;
+  }
+}
 .row {
     display: inline-flex;
     flex: 1;
