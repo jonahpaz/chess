@@ -7,40 +7,41 @@ class Piece {
     }
 
     move(row, column) { 
-        let rowChange = this.getDisplacement(this, row, column)[0];
-        let columnChange = this.getDisplacement(this, row, column)[1];
-        if (!this.legalMoveDisplacement(rowChange, columnChange)) return false;
-        return true;
+        let displacement = this.getDisplacement(row, column);
+        if (this instanceof King) {
+            if (this.legalCastleDisplacement(...displacement)) return "castle";
+        }
+        if (!this.legalMoveDisplacement(...displacement)) return false;
+        return "move";
     }
     capture(row, column) { 
-        let rowChange = this.getDisplacement(this, row, column)[0];
-        let columnChange = this.getDisplacement(this, row, column)[1];
-        if (!this.legalCaptureDisplacement(rowChange, columnChange)) return false;
-        return true;
+        let displacement = this.getDisplacement(row, column);
+        if (!this.legalCaptureDisplacement(...displacement)) return false;
+        return "capture";
     }
 
-    getDisplacement(piece, row, column) {
-        let rowChange = row - piece.position[0];
-        let columnChange = column - piece.position[1];
+    getDisplacement(row, column) {
+        let rowChange = row - this.position[0];
+        let columnChange = column - this.position[1];
         return [rowChange, columnChange];
     }
-    getHypotheticalMovesAndCaptures() {
-        const hypotheticalMovesAndCaptures = [];
-        for (let i = 0; i < 8; i++) {
-            let rowChange = i - this.position[0];
+    // getHypotheticalMovesAndCaptures() {
+    //     const hypotheticalMovesAndCaptures = [];
+    //     for (let i = 0; i < 8; i++) {
+    //         let rowChange = i - this.position[0];
 
-            for (let j = 0; j < 8; j++) {
-                let columnChange = j - this.position[1];
+    //         for (let j = 0; j < 8; j++) {
+    //             let columnChange = j - this.position[1];
 
-                if (this.legalMoveDisplacement(rowChange, columnChange) || 
-                    this.legalCaptureDisplacement(rowChange, columnChange)) {
-                    let potentialMove = [i, j];
-                    hypotheticalMovesAndCaptures.push(potentialMove);
-                }
-            }
-        }
-        return hypotheticalMovesAndCaptures;
-    }
+    //             if (this.legalMoveDisplacement(rowChange, columnChange) || 
+    //                 this.legalCaptureDisplacement(rowChange, columnChange)) {
+    //                 let potentialMove = [i, j];
+    //                 hypotheticalMovesAndCaptures.push(potentialMove);
+    //             }
+    //         }
+    //     }
+    //     return hypotheticalMovesAndCaptures;
+    // }
 }
 
 
@@ -68,6 +69,11 @@ class Pawn extends Piece{
         if (Math.abs(columnChange) === 1 && Math.abs(rowChange) === 1) {
             return true;
         } else {return false}
+    }
+    legalEnPassantPosition() { //quiza sirva para acotar mas el total de operaciones y lo pones en Piece en capture antes del return despues del legalCaptureDisplacement
+        if (this.color === "white" && this.position[0] !== 3) return false;
+        if (this.color === "black" && this.position[0] !== 4) return false;
+        return "enPassant";
     }
 }
 
@@ -140,24 +146,56 @@ class King extends Piece {
         super(row, column);
         this.name = "King";
         this.color = color;
+        this.value = 3;
         kingsMap.set(this.color, this);
     }
-    legalMoveDisplacement(rowChange, columnChange) {
-        if (this.legalTypicalDisplacement(rowChange, columnChange)) {
-            return true;
-        } else if (rowChange === 0 && Math.abs(columnChange) === 2
-                   && this.initialPosition === this.position) {
-            return true;
-        } else {return false}
-    }
-    legalTypicalDisplacement(rowChange, columnChange){
+    legalMoveDisplacement(rowChange, columnChange){
         if ((Math.abs(rowChange) === 1 && Math.abs(columnChange) === 1) ||
             (Math.abs(rowChange) === 1 && columnChange === 0) ||
             (rowChange === 0 && Math.abs(columnChange) === 1))  {
             return true;
         } else {return false}
     }
+    legalCastleDisplacement(rowChange, columnChange) {
+        if (rowChange === 0 && Math.abs(columnChange) === 2 //Para Chess-960 Modify Math.abs(columnChange) === 2 to Math.abs(columnChange) > 1 
+            && this.initialPosition === this.position) {
+            return true;
+        } else {return false}
+    }
+    getPassingColumns(targetColumn) {
+        let passingColumns = [];
+        if (targetColumn - this.position[1] > 0) { 
+            for (let i = this.position[1] + 1; i < targetColumn; i++) {
+                passingColumns.push(i);
+            }
+        } else { 
+            for (let i = this.position[1] - 1; i > targetColumn; i--) {
+                passingColumns.push(i);
+            }
+        }
+        return passingColumns;
+    }
+    getRookForCastle(targetColumn) {
+        let rook;
+        if (targetColumn - this.initialPosition[1] > 0) {
+            for (let i = this.position[1] + 1; i < 8; i++) {
+                if (rooksMap.get(`${i}-${this.color}`)) {
+                    rook = rooksMap.get(`${i}-${this.color}`);
+                    rook.castleColumn = targetColumn - 1;
+                    return rook;
+                }
+            }
+        } else {
+            for (let i = this.initialPosition[1] - 1; i >= 0; i--) {
+                if (rooksMap.get(`${i}-${this.color}`)) {
+                    rook = rooksMap.get(`${i}-${this.color}`);
+                    rook.castleColumn = targetColumn + 1;
+                    return rook;
+                }
+            }
+        }
+    }
 }
-King.prototype.legalCaptureDisplacement = King.prototype.legalTypicalDisplacement;
+King.prototype.legalCaptureDisplacement = King.prototype.legalMoveDisplacement;
 
 export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, kingsMap, rooksMap }

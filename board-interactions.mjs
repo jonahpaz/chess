@@ -1,8 +1,10 @@
 import { Board } from "./board.mjs";
-import { Pawn, King, Knight, kingsMap, rooksMap } from "./pieces.mjs";
+import { Pawn, Knight, kingsMap, rooksMap } from "./pieces.mjs";
 
 
 const listOfMoves = [];
+
+const log = document.querySelector(".log");/////////////
 
 class BoardInteractions {
     static #typOfmove = `ilegalMove`; //for future Display messages
@@ -14,27 +16,26 @@ class BoardInteractions {
         let capturedPiece;
         if (typeOfMove === "move" || typeOfMove === "capture") {
             capturedPiece = board[row][column].piece;
-
             delete board[piece.position[0]][piece.position[1]].piece;
             board[row][column].piece = piece;
         } else
 
         if (typeOfMove === "castle") {
-            let rookInitialColumn, rookTargetColumn;
+            let rookInitialColumn, rookCastleColumn;
             if (column - piece.position[1] > 0) {
-                rookInitialColumn = 7; rookTargetColumn = 5;
+                rookInitialColumn = 7; rookCastleColumn = 5;
             } else {
-                rookInitialColumn = 0; ; rookTargetColumn = 3;
+                rookInitialColumn = 0; ; rookCastleColumn = 3;
             }
             let rook = rooksMap.get(`${rookInitialColumn}-${piece.color}`);
 
             delete board[piece.position[0]][piece.position[1]].piece;
             delete board[rook.position[0]][rook.position[1]].piece;
             board[row][column].piece = piece;
-            board[row][rookTargetColumn].piece = rook;
+            board[row][rookCastleColumn].piece = rook;
 
             rook.lastPosition = [...rook.position];
-            rook.position = [row, rookTargetColumn];
+            rook.position = [row, rookCastleColumn];
         }
 
         if (typeOfMove === "enPassant") {
@@ -60,60 +61,64 @@ class BoardInteractions {
         if (typeOfMove === "enPassant" || typeOfMove === "castle") return typeOfMove;
 
         if (this.thereAreObstacules(board, piece, row, column)) return false;
+
         let myKing = kingsMap.get(piece.color);
         if (this.selfCheckKing(board, myKing, piece, row, column)) return false;
-        
 
         return typeOfMove;
     }
 
 
     static move(board, piece, row, column) {
-        if (!piece.move(row, column)) return false;
-        if (piece instanceof King) {
-            let typeOfMove = this.castle(board, piece, row, column);
-            if (typeOfMove) return typeOfMove;
+        let move = piece.move(row, column);
+        if (move === "castle") {
+            let castle = this.castle(board, piece, row, column);
+            if (castle) {return castle} else {return false}
         }
+        if (!move) return false;
         if (board[row][column].piece) return false;
-        
-        return "move";
+        return move;
     }
     static castle(board, king, row, column) {
-        if (Math.abs(column - king.position[1]) !== 2) return false;
         if (this.canBeCaptured(board, king, king.position[0], king.position[1])) return false;
 
-        let rookInitialColumn, rookTargetColumn, passingColumn;
-        if (column - king.position[1] > 0) {
-            rookInitialColumn = 7; rookTargetColumn = 5; passingColumn = 5;
-        } else {
-            rookInitialColumn = 0; ; rookTargetColumn = 3; passingColumn = 3;
-        }
-
-        let rook = rooksMap.get(`${rookInitialColumn}-${king.color}`);
-        if (board[row][rookInitialColumn].piece !== rook) return false;
+        let rook = king.getRookForCastle(column);
         if (rook.position !== rook.initialPosition) return false;
+        if (board[row][rook.position[1]].piece !== rook) return false;
+
+        delete board[rook.position[0]][rook.position[1]].piece;
+        let obstaculesForKing = this.thereAreObstacules(board, king, row, column);
+        board[rook.position[0]][rook.position[1]].piece = rook;
+        if (obstaculesForKing) return false;
+
+        delete board[king.position[0]][king.position[1]].piece;
+        let obstaculesForRook = this.thereAreObstacules(board, rook, row, rook.castleColumn);
+        board[king.position[0]][king.position[1]].piece = king;
+        if (obstaculesForRook) return false;
         
-        if (this.thereAreObstacules(board, king, row, column)) return false;
-        if (this.thereAreObstacules(board, rook, row, rookTargetColumn)) return false;
-        if (this.selfCheckKing(board, king, king, row, passingColumn)) return false;
-
-        if (this.selfCheckKingByCastling(board, king, rook, row, column, rookTargetColumn)) return false;
-
+        let passingColumns = king.getPassingColumns(column);
+        passingColumns.forEach(
+            passingColumn => {
+                if (this.selfCheckKing(board, king, king, row, passingColumn)) return false;
+            }
+        );
+        if (this.selfCheckKingByCastling(board, king, rook, row, column, rook.castleColumn)) return false;
+        
         return "castle";
     }
 
     static capture(board, piece, row, column) {
-        if (!piece.capture(row, column)) return false;
+        let capture = piece.capture(row, column);
+        if(!capture) return false;
         if (piece instanceof Pawn) {
-            let typeOfMove = this.enPassant(board, piece, row, column);
-            if (typeOfMove) return typeOfMove;
+            let enPassant = this.enPassant(board, piece, row, column);
+            if (enPassant) return enPassant;
         }
 
         let capturedPiece = board[row][column].piece;
-        if (!capturedPiece || 
-            capturedPiece.color === piece.color) return false;
+        if (!capturedPiece || capturedPiece.color === piece.color) return false;
 
-        return "capture";
+        return capture;
     }
     static enPassant(board, pawn, row, column) {
         if (listOfMoves.length === 0) return false;
@@ -142,7 +147,7 @@ class BoardInteractions {
 
 
     static selfCheckKing(board, ownKing, ownPiece, targetRow, targetColumn) {
-        let enemyPieceFromTargetPosition = board[targetRow][targetColumn].piece;
+        let pieceInTargetPosition = board[targetRow][targetColumn].piece;
 
         board[targetRow][targetColumn].piece = ownPiece;
         delete board[ownPiece.position[0]][ownPiece.position[1]].piece;
@@ -156,51 +161,36 @@ class BoardInteractions {
             kingColumn = ownKing.position[1];
         }
 
-        let kingCanBeCaptured = true;
+        let kingCanBeCaptured;
         kingCanBeCaptured = this.canBeCaptured(board, ownKing, kingRow, kingColumn);
 
-        if (enemyPieceFromTargetPosition) {
-            board[targetRow][targetColumn].piece = enemyPieceFromTargetPosition;
-        } else {
-            delete board[targetRow][targetColumn].piece;
-        }
+
+
+
+        if (pieceInTargetPosition) 
+             {board[targetRow][targetColumn].piece = pieceInTargetPosition}
+        else {delete board[targetRow][targetColumn].piece}
+
         board[ownPiece.position[0]][ownPiece.position[1]].piece = ownPiece;
         
         if (!kingCanBeCaptured) return false;
-
-        // let lastMove = listOfMoves[listOfMoves.length - 1]; //just for the console
-        // if (ownKing === ownPiece) {
-        //     if (lastMove && lastMove.piece.color !== ownPiece.color) //just for the console
-        //     console.log(`selfCheckKing says: Can't put yourself in check.`);
-        // } 
-        // else {
-        //     if (lastMove && lastMove.piece.color !== ownPiece.color) //just for the console
-        //     console.log(`selfCheckKing says: \n  Can't do it. Your king would be captured on the next move.`);
-        // }
-        
         return true;
     }
-    static selfCheckKingByCastling(board, ownKing, ownRook, row, kingTargetColumn, rookTargetColumn) { //Only actually makes a difference if I develop Fisher-Random-Chess later on.
-        board[row][kingTargetColumn].piece = ownKing;
-        board[row][rookTargetColumn].piece = ownRook;
+    static selfCheckKingByCastling(board, ownKing, ownRook, row, kingCastleColumn, rookCastleColumn) { //Only actually makes a difference if I develop Fisher-Random-Chess later on.
+        board[row][kingCastleColumn].piece = ownKing;
+        board[row][rookCastleColumn].piece = ownRook;
         delete board[ownKing.position[0]][ownKing.position[1]].piece;
         delete board[ownRook.position[0]][ownRook.position[1]].piece;
 
-        let kingCanBeCaptured = true;
-        kingCanBeCaptured = 
-            this.canBeCaptured(board, ownKing, row, kingTargetColumn);
+        let kingCanBeCaptured;
+        kingCanBeCaptured = this.canBeCaptured(board, ownKing, row, kingCastleColumn);
         
-        delete board[row][kingTargetColumn].piece;
-        delete board[row][rookTargetColumn].piece;
+        delete board[row][kingCastleColumn].piece;
+        delete board[row][rookCastleColumn].piece;
         board[ownKing.position[0]][ownKing.position[1]].piece = ownKing;
         board[ownRook.position[0]][ownRook.position[1]].piece = ownRook;
 
         if (!kingCanBeCaptured) return false;
-
-        // let lastMove = listOfMoves[listOfMoves.length - 1]; //just for the console
-        // if (lastMove && lastMove.piece.color !== ownKing.color) //just for the console
-        // console.log(`selfCheckKingByCastling says: \n  Can't castle. Your king would be captured on the next move.`);
-
         return true;
     }
     static selfCheckKingByEnPassant(board, ownKing, ownPawn, targetRow, targetColumn) {
@@ -210,7 +200,6 @@ class BoardInteractions {
         delete board[ownPawn.position[0]][ownPawn.position[1]].piece;
         delete board[ownPawn.position[0]][ownPawn.position[1]].piece;
 
-        // Board.displayConsoleBoard();
         let kingCanBeCaptured = true;
         kingCanBeCaptured = 
             this.canBeCaptured(board, ownKing, ownKing.position[0], ownKing.position[1]);
@@ -220,11 +209,6 @@ class BoardInteractions {
         board[enemyPawn.position[0]][enemyPawn.position[1]].piece = enemyPawn;
 
         if (!kingCanBeCaptured) return false;
-
-        // let lastMove = listOfMoves[listOfMoves.length - 1]; //just for the console
-        // if (lastMove && lastMove.piece.color !== ownPawn.color) //just for the console
-        // console.log(`selfCheckKingByEnPassant says: \n  Can't do en-passant. Your king would be captured on the next move.`);
-
         return true;
     }
 
@@ -241,7 +225,6 @@ class BoardInteractions {
                 let anotherColumnChange = column - anotherPiece.position[1];
 
                 if (!anotherPiece.legalCaptureDisplacement(anotherRowChange, anotherColumnChange)) continue;
-
                 if (this.thereAreObstacules(board, anotherPiece, row, column)) continue;
                 
                 // if (lastMove && lastMove.piece.color !== piece.color)//just for the console
@@ -256,23 +239,37 @@ class BoardInteractions {
 
         return false;
     }
-    static thereAreObstacules(board, piece, row, column) {
+
+    static thereAreObstacules(board, piece, finalRow, finalColumn) {
         if (piece instanceof Knight) return false;
 
-        let startingRow = piece.position[0];
-        let startingColumn = piece.position[1];
-        let rowChange = row - piece.position[0];
-        let columnChange = column - piece.position[1];
+        let rowChange      = finalRow - piece.position[0];
+        let columnChange   = finalColumn - piece.position[1];
+        let startingRow    = {value: piece.position[0]};
+        let startingColumn = {value: piece.position[1]};
 
-        while ( startingRow !== row || startingColumn !== column ) {
-            if (rowChange < 0) {startingRow--} else if (rowChange > 0) {startingRow++} 
-            else if (rowChange === 0) {startingRow === row}
+        function plusplus(startingCoordenate) {
+            return () => {return ++startingCoordenate.value}
+        }
+        function minusminus(startingCoordenate) {
+            return () => {return --startingCoordenate.value}
+        }
 
-            if (columnChange < 0) {startingColumn--} else if (columnChange > 0) {startingColumn++} 
-            else if (columnChange === 0) {startingColumn === column}
+        let rowCounter, columnCounter;
+        if      (rowChange > 0)   {rowCounter = plusplus(startingRow)} 
+        else if (rowChange < 0)   {rowCounter = minusminus(startingRow)} 
+        else if (rowChange === 0) {rowCounter = () => finalRow}
 
-            if (startingRow === row && startingColumn === column) continue;
-            if (board[startingRow][startingColumn].piece) return true;
+        if      (columnChange > 0)   {columnCounter = plusplus(startingColumn)}
+        else if (columnChange < 0)   {columnCounter = minusminus(startingColumn)}
+        else if (columnChange === 0) {columnCounter = () => finalColumn}
+
+        let passingRow = startingRow;  let passingColumn = startingColumn;
+        rowCounter(); columnCounter();
+
+        while ( !(startingRow.value === finalRow && startingColumn.value === finalColumn) ) {
+            if (board[passingRow.value][passingColumn.value].piece) return true;
+            rowCounter(); columnCounter();
         }
         return false;
     }
@@ -281,7 +278,8 @@ class BoardInteractions {
         let enemyColor = piece.color === "white" ? "black" : "white";
         let enemyKing = kingsMap.get(enemyColor);
         if ( this.canBeCaptured(board, enemyKing, enemyKing.position[0], enemyKing.position[1]) 
-            && !this.canSaveKing(board, enemyColor) ) console.log("CHECK MATE");
+            && !this.canSaveKing(board, enemyColor) ) {console.log("CHECK MATE");
+        log.textContent += `\nCHECK MATE`;}////////////////////////////////////
     }
     static canSaveKing(board, color) {
         let thereIsAtleastOneSavior = false;
@@ -332,6 +330,7 @@ class BoardInteractions {
 
         console.log("legalMove happened");
         console.log(consoleMessage);
+        log.textContent = consoleMessage;///////////
         this.checkForCheckMate(board, piece);
         Board.displayConsoleBoard();
     }
