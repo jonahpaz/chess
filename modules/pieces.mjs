@@ -212,4 +212,11 @@ class King extends Piece {
 }
 King.prototype.legalCaptureDisplacement = King.prototype.legalMoveDisplacement;
 
-export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, piecesMap, kingsMap }
+const promotionOptions = {
+    "Queen": Queen,
+    "Rook": Rook,
+    "Knight": Knight,
+    "Bishop": Bishop,
+}
+
+export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, piecesMap, kingsMap, promotionOptions }

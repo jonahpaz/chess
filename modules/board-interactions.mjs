@@ -1,4 +1,4 @@
-import { Pawn, Knight, kingsMap } from "./pieces.mjs";
+import { Pawn, Knight, kingsMap, promotionOptions } from "./pieces.mjs";
 import { listOfMoves } from "./moves.mjs";
 
 
@@ -94,6 +94,20 @@ class Rules {
         if (this.selfCheckKingByEnPassant(board, myKing, pawn, rank, file)) return false;
 
         return "enPassant";
+    }
+
+    static promote(board, pawn, rank, file) {
+        if ( !(pawn instanceof Pawn) ) return false;
+        if (pawn.color === "white" && rank !== 0) return false;
+        if (pawn.color === "black" && rank !== 7) return false;
+
+        let PieceString;
+        while(!promotionOptions[PieceString]) {
+            PieceString = prompt("Type of Piece (first letter uppercase)", "Queen");
+        }
+        let Piece = promotionOptions[PieceString];
+        let promotion = new Piece(pawn.color, rank, file);
+        return promotion;
     }
 
 

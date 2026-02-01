@@ -67,6 +67,9 @@ class Board {
         if (typeOfMove === "move" || typeOfMove === "capture") {
             capturedPiece = this.body[rank][file].piece;
             delete this.body[piece.position[0]][piece.position[1]].piece;
+
+            let promotion = Rules.promote(this.body, piece, rank, file);
+            if (promotion) piece = promotion;
             this.body[rank][file].piece = piece;
         } else
 
