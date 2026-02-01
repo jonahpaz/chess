@@ -26,7 +26,7 @@ body {
     /* transform: rotate(180deg); */
 }
 
-.row {
+.rank {
     display: inline-flex;
     flex: 1;
 }
@@ -39,7 +39,7 @@ body {
     &.black {
         background-color: black;
     }
-    &.hypotheticalPosition {
+    &.legalMove {
         background-image: radial-gradient(rgba(137, 43, 226, 0.399) 50%, rgba(137, 43, 226, 0.399) 50%);
     }
 }
@@ -81,3 +81,4 @@ body {
     width: 100vw;
   }
 }
+

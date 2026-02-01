@@ -52,3 +52,12 @@
 //     this.checkForCheckMate(board, piece);
 //     Board.displayConsoleBoard();
 // }
+
+// rook = piece.getRookForCastle(column);
+
+//             delete board[piece.position[0]][piece.position[1]].piece;
+//             delete board[rook.position[0]][rook.position[1]].piece;
+//             board[row][column].piece = piece;
+//             board[row][rook.castleColumn].piece = rook;
+
+//             rook.update(row, rook.castleColumn);
