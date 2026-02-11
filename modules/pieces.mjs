@@ -11,10 +11,10 @@ class Piece {
 
     move(rank, file) { 
         let displacement = this.getDisplacement(rank, file);
-        if (displacement[0] === 0 && displacement[1] === 0) return false;
-        if (this instanceof King) {
+        if (this instanceof King && (file === 2 || file === 6)) {
             if (this.legalCastleDisplacement(...displacement)) return "castle";
         }
+        if (displacement[0] === 0 && displacement[1] === 0) return false;
         if (!this.legalMoveDisplacement(...displacement)) return false;
         return "move";
     }
@@ -64,11 +64,17 @@ class Pawn extends Piece{
         super(rank, file);
         this.name = "Pawn";
         this.color = color;
-        this.value = 1; 
+        this.points = 1; 
+    }
+    forwardDisplacement(rankChange) {
+        let initialRank = this.initialPosition[0];
+        let currentRank = this.position[0];
+        if (initialRank === 1 && currentRank + rankChange > currentRank) return true;
+        if (initialRank === 6 && currentRank + rankChange < currentRank) return true;
+        return false;
     }
     legalMoveDisplacement(rankChange, fileChange) {
-        if (rankChange > 0 && this.color === "white") {return false}
-        if (rankChange < 0 && this.color === "black") {return false}
+        if (!this.forwardDisplacement(rankChange)) return false;
         if (fileChange === 0) {
             if (Math.abs(rankChange) === 1) {
                 return true;
@@ -79,8 +85,7 @@ class Pawn extends Piece{
         } else {return false}
     }
     legalCaptureDisplacement(rankChange, fileChange) {
-        if (rankChange > 0 && this.color === "white") {return false}
-        if (rankChange < 0 && this.color === "black") {return false}
+        if (!this.forwardDisplacement(rankChange)) return false;
         if (Math.abs(fileChange) === 1 && Math.abs(rankChange) === 1) {
             return true;
         } else {return false}
@@ -92,7 +97,7 @@ class Bishop extends Piece {
         super(rank, file);
         this.name = "Bishop";
         this.color = color;
-        this.value = 3;
+        this.points = 3;
     }
     legalMoveDisplacement(rankChange, fileChange) {
         if (Math.abs(rankChange) === Math.abs(fileChange)) {
@@ -107,7 +112,7 @@ class Knight extends Piece {
         super(rank, file);
         this.name = "Knight";
         this.color = color;
-        this.value = 3;
+        this.points = 3;
     }
     legalMoveDisplacement(rankChange, fileChange) {
         if ((Math.abs(rankChange) === 1 && Math.abs(fileChange) === 2) ||
@@ -118,14 +123,14 @@ class Knight extends Piece {
 }
 Knight.prototype.legalCaptureDisplacement = Knight.prototype.legalMoveDisplacement;
 
-const rooksMap = new Map();
+const rooksMap = new Map([ ["white", []], ["black", []] ]);
 class Rook extends Piece {
     constructor(color, rank, file) {
         super(rank, file);
         this.name = "Rook";
         this.color = color;
-        this.value = 5;
-        rooksMap.set(`${this.initialPosition[1]}-${this.color}`, this);
+        this.points = 5;
+        rooksMap.get(this.color).push(this);
     }
     legalMoveDisplacement(rankChange, fileChange) {
         if ((Math.abs(rankChange) > 0 && fileChange === 0) ||
@@ -141,7 +146,7 @@ class Queen extends Piece {
         super(rank, file);
         this.name = "Queen";
         this.color = color;
-        this.value = 9;
+        this.points = 9;
     }
     legalMoveDisplacement(rankChange, fileChange) {
         if ((Math.abs(rankChange) > 0 && fileChange === 0) ||
@@ -160,7 +165,8 @@ class King extends Piece {
         super(rank, file);
         this.name = "King";
         this.color = color;
-        this.value = 100;
+        this.points = 100;
+        this.rooks = [];
         kingsMap.set(this.color, this);
     }
     legalMoveDisplacement(rankChange, fileChange){
@@ -170,8 +176,8 @@ class King extends Piece {
             return true;
         } else {return false}
     }
-    legalCastleDisplacement(rankChange, fileChange) {//Didn't set fixed positions for the rooks for future Chess-960
-        if (rankChange === 0 && Math.abs(fileChange) === 2 //For Chess-960 modify Math.abs(fileChange) === 2 to Math.abs(fileChange) > 1 
+    legalCastleDisplacement(rankChange, fileChange) {
+        if (rankChange === 0 && Math.abs(fileChange) > 1
             && this.initialPosition === this.position) {
             return true;
         } else {return false}
@@ -189,25 +195,17 @@ class King extends Piece {
         }
         return passingFiles;
     }
-    getRookForCastle(targetFile) {//Didn't set fixed positions for the rooks for future Chess-960
+    getRookForCastle(targetFile) {
         let rook;
+        let rooks = rooksMap.get(this.color);
         if (targetFile - this.initialPosition[1] > 0) {
-            for (let i = this.position[1] + 1; i < 8; i++) {
-                if (rooksMap.get(`${i}-${this.color}`)) {
-                    rook = rooksMap.get(`${i}-${this.color}`);
-                    rook.castleFile = targetFile - 1;
-                    return rook;
-                }
-            }
-        } else {
-            for (let i = this.initialPosition[1] - 1; i >= 0; i--) {
-                if (rooksMap.get(`${i}-${this.color}`)) {
-                    rook = rooksMap.get(`${i}-${this.color}`);
-                    rook.castleFile = targetFile + 1;
-                    return rook;
-                }
-            }
+            rook = rooks.find(rook => rook.initialPosition[1] > this.initialPosition[1]);
+            rook.castleFile =  5;
+        } else if (targetFile - this.initialPosition[1] < 0) {
+            rook = rooks.find(rook => rook.initialPosition[1] < this.initialPosition[1]);
+            rook.castleFile = 3;
         }
+        return rook;
     }
 }
 King.prototype.legalCaptureDisplacement = King.prototype.legalMoveDisplacement;
@@ -219,4 +217,4 @@ const promotionOptions = {
     "Bishop": Bishop,
 }
 
-export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, piecesMap, kingsMap, promotionOptions }
+export { Piece, Pawn, Bishop, Knight, Rook, Queen, King, piecesMap, kingsMap, rooksMap, promotionOptions }

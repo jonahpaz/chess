@@ -21,26 +21,29 @@ class Rules {
 
     static move(board, piece, rank, file) {
         let move = piece.move(rank, file);
+        if (!move) return false;
         if (move === "castle") {
             let castle = this.castle(board, piece, rank, file);
             if (castle) {return castle} else {return false}
         }
-        if (!move) return false;
         if (board[rank][file].piece) return false;
         
         return move;
     }
-    static castle(board, king, rank, file) {
-        if (this.canBeCaptured(board, king, king.position[0], king.position[1])) return false;
+    static castle(board, king, rank, file, rook) {
+        if (king.initialPosition !== king.position) return false;
+        let pieceInFinalKingPosition = board[rank][file].piece;
+        if (pieceInFinalKingPosition && pieceInFinalKingPosition !== rook 
+            && pieceInFinalKingPosition !== king) return false;
 
-        let rook = king.getRookForCastle(file);
+        rook = rook ? rook : king.getRookForCastle(file);
         if (rook.position !== rook.initialPosition) return false;
         if (board[rank][rook.position[1]].piece !== rook) return false;
 
         delete board[rook.position[0]][rook.position[1]].piece;
         let obstaculesForKing = this.thereAreObstacules(board, king, rank, file);
         board[rook.position[0]][rook.position[1]].piece = rook;
-        if (obstaculesForKing) return false;
+        if (obstaculesForKing) return false;  
 
         delete board[king.position[0]][king.position[1]].piece;
         let obstaculesForRook = this.thereAreObstacules(board, rook, rank, rook.castleFile);
@@ -48,11 +51,10 @@ class Rules {
         if (obstaculesForRook) return false;
         
         let passingFiles = king.getPassingFiles(file);
-        passingFiles.forEach(
-            passingFile => {
-                if (this.selfCheckKing(board, king, king, rank, passingFile)) return false;
-            }
-        );
+        for (const passingFile of passingFiles) {
+            if (this.selfCheckKing(board, king, king, rank, passingFile)) return false;
+        }
+
         if (this.selfCheckKingByCastling(board, king, rook, rank, file, rook.castleFile)) return false;
         
         return "castle";
@@ -96,18 +98,19 @@ class Rules {
         return "enPassant";
     }
 
-    static promote(board, pawn, rank, file) {
+    static promote(pawn, rank, file) {
         if ( !(pawn instanceof Pawn) ) return false;
-        if (pawn.color === "white" && rank !== 0) return false;
-        if (pawn.color === "black" && rank !== 7) return false;
+        if (pawn.color === "white" && rank !== 0) return undefined;
+        if (pawn.color === "black" && rank !== 7) return undefined;
 
         let PieceString;
         while(!promotionOptions[PieceString]) {
             PieceString = prompt("Type of Piece (first letter uppercase)", "Queen");
         }
-        let Piece = promotionOptions[PieceString];
-        let promotion = new Piece(pawn.color, rank, file);
-        return promotion;
+        let Class = promotionOptions[PieceString];
+        let promotion = new Class(pawn.color, rank, file);
+
+        return {pawn, piece: promotion};
     }
 
 
@@ -257,7 +260,7 @@ class Rules {
                     for (let j = 0; j < 8; j++) {
 
                         if (this.legalMove(board, kingSavior, i, j)) {
-                            kingSaviors.push({kingSavior, savingPosition: [i, j]});
+                            kingSaviors.push(kingSavior);
                         }
                     }
                 }

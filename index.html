@@ -14,10 +14,32 @@
 </head>
 <body>
 <div class="page">
-    <div class="cementery"></div>
+    <div class="buttons">
+        <button id="restart">Restart</button>
+        <select aria-label="Chess variant" name="variant" id="variant">
+            <button><selectedcontent></selectedcontent></button>
+            <option value="classical" selected>Classical</option>
+            <option value="chess-960">Chess-906</option>
+        </select>
+        <select aria-label="Perspective" name="perspective" id="perspective">
+            <button><selectedcontent></selectedcontent></button>
+            <option value="white" selected>White</option>
+            <option value="black">Black</option>
+        </select>
+    </div>
     <div class="board"></div>
-    <div class="cementery"></div>
-    <div class="log"></div>
+    <div class="dungeons">
+        <div class="white container">
+            <div class="white points-up"></div>
+            <div class="white dungeon"></div>
+        </div>
+        <div class="black container">
+            <div class="black dungeon"></div>
+            <div class="black points-up"></div>
+        </div>
+    </div>
+    <dialog class="promotion" popover="auto">
+    </dialog>
 </div>
 </body>
 </html>

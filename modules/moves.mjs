@@ -2,18 +2,19 @@ import { Knight, Pawn, piecesMap } from "./pieces.mjs";
 
 const listOfMoves = [];
 class Move {
-    constructor(previousBoard, typeOfMove, movedPiecesArr, capturedPiece, statusObj) {
-        // this.name = movedPiecesArr ? this.getName(typeOfMove, movedPiecesArr, statusObj) : "start"; //luego que defina bien el metodo
-
+    constructor(previousBoard, typeOfMove, movedPiecesArr, capturedPiece, promotion, statusObj) {
         movedPiecesArr = movedPiecesArr ? movedPiecesArr : [];
         this.activePlayer = movedPiecesArr[0].color;
         this.previousBoardSkeleton = 
             previousBoard ? this.getBoardSkeleton(previousBoard) : undefined;
-        this.previousCementerySkeleton = undefined;
+        // this.previousDungeonSkeleton = this.getDungeonSkeleton(previousDungeon);
+        // also need to add previousDungeon parameter
+        //first gotta finish defining the dungeon logic
 
         this.typeOfMove = typeOfMove;
         this.movedPieces = movedPiecesArr;
         this.capturedPiece = capturedPiece;
+        this.promotion = promotion;
 
         statusObj = statusObj ? statusObj : {check: false, kingSaviors: [], checkMate: false};
         this.check = statusObj.check;
@@ -21,44 +22,55 @@ class Move {
         this.kingSaviors.push(...statusObj.kingSaviors);
         this.checkMate = statusObj.checkMate;
 
+        //this.name =this.getName(typeOfMove, movedPiecesArr, promotion, statusObj); 
+        //Later, when I finish dungeons stuff
+
         listOfMoves.push(this);
     }
 
-    getName(typeOfMove, movedPiecesArr, statusObj) {
-        let movedPiece = movedPiecesArr[0];
+    getName(typeOfMove, movedPiecesArr, promotion, statusObj) {
+        let name = ``;
 
-        let letterPiece = "";
+        let statusString = ``;
+        if (statusObj.checkMate) {statusString = `#`}
+        else if (statusObj.check) {statusString = `+`}
+        
+        if (typeOfMove === "castle") {
+            let king = movedPiecesArr[0];
+            if (king.position[1] > king.lastPosition[1]) 
+            {name = `0-0${statusString}`} else {name = `0-0-0${statusString}`}
+            return name;
+        }
+
+        let movedPieceString = ``;
+        let movedPiece = movedPiecesArr[0];
         if ( !(movedPiece instanceof Pawn) ) {
             if (movedPiece instanceof Knight) {
-                letterPiece = "N";
+                movedPieceString = "N";
             } else {
-                letterPiece = movedPiece.name[0].toUpperCase();
+                movedPieceString = movedPiece.name[0].toUpperCase();
             }
         }
-        let files = "abcdefgh";
-        let file = files[movedPiece.file];
-        let rank = movedPiece.rank;
-
-        let moveSymbol = "";
-        if (typeOfMove === "castle") {
-            return "0-0" // Gotta define long and short castle later long would be "0-0-0"
-        } else if (typeOfMove === "capture") {
-            moveSymbol = "x";
+        let captureString = ``;
+        if (typeOfMove === "capture") {
+            captureString = `x`;
         } else if (typeOfMove === "enPassant") {
+            let pawn = movedPiecesArr[0];
+            captureString = `${pawn.lastPosition[1]}x`;
+        }
 
-        } 
-        let ending = "";
-        if (statusObj.check && !statusObj.checkMate) {
-            ending = "+";
-        } else if (statusObj.checkMate) {
-            ending = "#";
-        } else if (typeOfMove === "promotion") {
-            //gotta define promotion first in board-interactions and then how to retrieve it
-            //let promotion or something y luego initial touppercase y asi
-            ending = `=`;
-        } 
+        let files = "abcdefgh";
+        let file = files[movedPiecesArr[0].position[0]];
+        let rank = movedPiecesArr[0].position[1];
+
+        let promotionString = ``;
+        if (promotion) {
+            let Class = promotion.piece.constructor.name;
+            promotionString = `=${Class}`;
+        }
         
-        return `${letterPiece}${typeOfMove}${file}${rank}${ending}`
+        name = `${movedPieceString}${captureString}${file}${rank}${promotionString}${statusString}`
+        return name;
     }
     getBoardSkeleton(board) {
         let boardSkeleton = [];
@@ -74,6 +86,9 @@ class Move {
             }
         }
         return boardSkeleton;
+    }
+    getDungeonSkeleton(dungeon) {
+        dungeon.white.body/////////////////////
     }
     setPreviousBoard(board) {
         for (const [i, rankSkeleton] of this.previousBoardSkeleton.entries()) {

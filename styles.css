@@ -5,6 +5,8 @@
     box-sizing: border-box;
     background-color: transparent;
     border: none;
+    color: black;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 body {
     background-color: black;
@@ -16,6 +18,65 @@ body {
     max-width: 60rem;
     display: grid;
     place-content: center;
+    gap: 2rem;
+}
+select,
+::picker(select) {
+    appearance: base-select;
+}
+.buttons {
+    height: 3rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: center;
+    * {
+        background-color: rgb(253, 106, 138);
+        font-size: 1.1rem;
+        border-radius: 5px;
+    }
+    #restart {
+        padding: 0.2rem 0.6rem;
+        box-shadow: 0.15rem 0.15rem rgba(0, 0, 0, 0.638);
+        &:active {
+            box-shadow: inset 0.15rem 0.15rem rgba(0, 0, 0, 0.638);
+        }
+    }
+    select {
+        width: 7.5rem;
+        padding: 0.1rem 0.5rem;
+    }
+    select::picker-icon {
+        color: #2a059b;
+        transition: 0.4s rotate;
+    }
+    select:open::picker-icon {
+        rotate: 180deg;
+    }
+    ::picker(select) {
+        border: none;
+        background-color: transparent;
+        opacity: 0;
+        translate: 12rem 0.5rem;
+        transition: all 0.5s allow-discrete;
+    }
+    select:open::picker(select) {
+        opacity: 1;
+        translate: 0 0.5rem;
+        @starting-style {
+            opacity: 0;
+            translate: 0 -3rem;
+        }
+    }
+    option {
+        border: 2px solid #5d1313;
+        padding: 0.1rem 0.2rem;
+        transition: 0.4s;
+        &:hover,
+        &:focus {
+            background: rgb(156, 144, 221);
+        }
+    }
 }
 .board {
     display: flex;
@@ -23,7 +84,9 @@ body {
     height: clamp(360px, 70vw, 450px);
     width: clamp(360px, 70vw, 450px);
     border: 1rem solid rgb(255, 166, 0);
-    /* transform: rotate(180deg); */
+    transition: transform 1s;
+    position: relative;
+    
 }
 
 .rank {
@@ -33,21 +96,38 @@ body {
 .square {
     width: 100%;
     height: 100%;
+    /* transition: 1s allow-discrete; */
+    @staring-style {
+
+    }
+    position: relative;
     &.white {
         background-color: white;
     }
     &.black {
         background-color: black;
     }
-    &.legalMove {
+    &.legal-move {
         background-image: radial-gradient(rgba(137, 43, 226, 0.399) 50%, rgba(137, 43, 226, 0.399) 50%);
+    }
+    &.blacks-perspective {
+        transform: rotate(180deg);
     }
 }
 .piece {
-    font-size: clamp(0.70rem, 0.30rem + 1vw, 0.85rem);
-    width: 100%;
-    height: 100%;
-    /* transform: rotate(180deg); */
+    &.on-board {
+        font-size: clamp(0.70rem, 0.30rem + 1vw, 0.85rem);
+        width: clamp((360px - 2rem)/8, (70vw - 2rem)/8, (450px - 2rem)/8);
+        height: clamp((360px - 2rem)/8, (70vw - 2rem)/8, (450px - 2rem)/8);
+        z-index: 1;
+        position: fixed;
+        transition: left 0.180s ease, top 0.180s ease, bottom 0.180s ease, right 0.180s ease;
+        top: anchor(top);
+        right: anchor(right);
+        bottom: anchor(bottom);
+        left: anchor(left);
+    }
+
     &[data-color = "white"] {
         color: white;
         background: radial-gradient(Blue 55%, rgb(255, 166, 0) 60%,transparent 65%);
@@ -58,26 +138,138 @@ body {
     &.active {
         background-color: rgba(137, 43, 226, 0.399);
     }
+    &::after {
+        content: "!";
+        position: absolute;
+        width: 1rem;
+        height: 1rem;
+        top: 0;
+        left: 0;
+        background-color: rgb(0, 255, 47);
+        color: rgb(0, 0, 0);
+        font-weight: 800;
+        border-radius: 50%;
+        line-height: 100%;
+        /* border: 2px solid rgb(215, 146, 7); */
+        display: none;
+        transform: scale(0);
+        transition-property: display opacity transform;
+        /* transition-duration: 0.2s; */
+        transition-behavior: allow-discrete;
+    }
+    &.king-savior::after {
+        display: block;
+        transform: scale(1);
+        @starting-style {
+            transform: scale(0);
+        }
+    }
+    &.king-savior[data-name="King"]::after {
+        background-color: rgb(255, 166, 0);
+        transform: scale(1.4);
+        z-index: 1;
+    }
 }
 
-.log {
-    height: 3rem;
-    background-color: black;
-    color: white;
-    text-align: center;
-    display: grid;
-    place-content: center;
-    font-size: 1.2rem;
+.dungeons {
+    margin-top: -2rem;
+    display: flex;
+    flex-wrap: wrap;
     width: clamp(360px, 70vw, 450px);
+    & > .container {
+        flex: 1 1 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        &.white {
+            background-image: linear-gradient(to right, white 90%, rgb(127, 127, 127));
+        }
+        &.black {
+            background-image: linear-gradient(to left, black 90%, rgb(127, 127, 127));
+        }
+        & > .dungeon {
+            flex: 1 1 auto;
+            height: 2.5rem;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            &.white {
+                padding-left: 16px;
+            }
+            &.black {
+                justify-content: flex-end;
+                padding-right: 8px;
+            }
+            & > .block {
+                & > .piece {
+                    font-size: 0.8rem;
+                    margin-left: -12px;
+                    height: 1.25rem;
+                    width: 1.25rem;
+
+                    overflow: hidden;
+                    transition: 0.5s allow-discrete;
+            &:empty {
+                width: 0;
+            }
+
+                }
+                button.piece:last-child {
+                    margin-right: 12px;
+                }
+            }
+            & > .block:last-child {
+                button.piece:last-child {
+                    margin-right: 0;
+                }
+            }
+        }
+        & > .points-up {
+            /* font-family: 'Courier New', Courier, monospace; */
+            width: 2.2rem;
+            text-align: center;
+            overflow: hidden;
+            transition: 0.5s allow-discrete;
+            @starting-style {
+                width: 0;
+            }
+            &:empty {
+                width: 0;
+            }
+            &.black {
+                color: white;
+            }
+        }
+    }
 }
 
 @media screen and (max-width: 750px) {
-  .board {
-    height: 100vw;
+  .buttons {
     width: 100vw;
-    border: none;
   }
-  .log {
+  .board {
+      height: 100vw;
+      width: 100vw;
+      border: none;
+      .square {
+        position: relative;
+        width: calc(100vw / 8);
+        height: calc(100vw / 8);
+      }
+      .piece {
+          font-size: clamp(0.70rem, 0.30rem + 2vw, 2rem);
+          width: calc(100vw / 8);
+          height: calc(100vw / 8);
+          /* z-index: 1;
+          position: fixed;
+          transition: left 0.180s ease, top 0.180s ease, bottom 0.180s ease, right 0.180s ease;
+          top: anchor(top);
+          right: anchor(right);
+          bottom: anchor(bottom);
+          left: anchor(left); */
+      }
+  }
+  .dungeons {
     width: 100vw;
   }
 }
