@@ -31,19 +31,18 @@ class Dungeon {
             }
         }
     }
+
     getDungeonColorAndClass(capturedPiece) {
         let dungeonColor = capturedPiece.color === "white" ? "black" : "white";
         let Class = capturedPiece.constructor.name;
         return [dungeonColor, Class];
     }
-
     add(capturedPiece, dungeonColor, Class) { //white dungeon holds black pieces and viceverse
         this[dungeonColor].get(Class).push(capturedPiece);
     }
     remove(dungeonColor, Class) {
         this[dungeonColor].get(Class).pop();
     }
-
     dungeonOfPromotionIsEmpty(dungeonColor, Class) {
         let sameClassCapturedPieces = this[dungeonColor].get(Class);
         if (sameClassCapturedPieces.length === 0) return true;
@@ -60,6 +59,7 @@ class Dungeon {
     
         return false;
     }
+
     reset() {
         for (const [Class, pieces] of this.white) {
             pieces.length = 0;

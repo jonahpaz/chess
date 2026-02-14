@@ -1,10 +1,12 @@
-import { board } from "./board.mjs";
+import { game } from "./game-controller.mjs";
 import { Rules } from "./board-interactions.mjs";
+import { Console } from "./console.mjs";
+import { board } from "./board.mjs";
 import { dungeon } from "./dungeon.mjs";
 
 const blockDivMap = new Map();
-const squareMap = new Map();
-const pieceMap = new Map();
+const squaresMap = new Map();
+const piecesMap = new Map();
 class DomEl {
     static getSquareDiv(square) {
         let squareDiv = document.createElement("div");
@@ -13,8 +15,8 @@ class DomEl {
         squareDiv.dataset.rank = square.rank;
         squareDiv.dataset.file = square.file;
         squareDiv.style.anchorName = square.piece ?
-        `--${square.piece.id}` : ``;///////////
-        squareMap.set(square.id, {object: square, element: squareDiv});
+        `--${square.piece.id}` : ``;
+        squaresMap.set(square.id, {object: square, element: squareDiv});
         return squareDiv;
     }
     static getPieceButton(piece) {
@@ -25,7 +27,7 @@ class DomEl {
         pieceButton.dataset.color = piece.color;
         pieceButton.textContent = piece.name;
         pieceButton.style.positionAnchor = `--${piece.id}`;
-        pieceMap.set(piece.id, {object: piece, element: pieceButton});
+        piecesMap.set(piece.id, {object: piece, element: pieceButton});
         return pieceButton;
     }
     static getDungeonPiece(piece) {
@@ -65,7 +67,6 @@ class DisplayController {
     static get boardDiv() {
         return this.#boardDiv;
     }
-    static #activePlayer = "white";
     static #perspective = "white";
     static restart = document.querySelector("#restart");
     static variant = document.querySelector("#variant");
@@ -91,7 +92,7 @@ class DisplayController {
         let pieceButton = event.target;
         if (!pieceButton.classList.contains("piece")) return false;
 
-        if (pieceButton.dataset.color !== this.#activePlayer) return false;
+        if (pieceButton.dataset.color !== game.activePlayer) return false;
         
         if (!DisplayController.boardDiv.querySelector(".active")) {
             pieceButton.classList.add("active");
@@ -109,23 +110,24 @@ class DisplayController {
     static classicalMove(event) {
         let activePieceButton = DisplayController.boardDiv.querySelector(".active");
         if (!activePieceButton) return;
-        if (activePieceButton.dataset.color !== this.#activePlayer) return;
+        if (activePieceButton.dataset.color !== game.activePlayer) return;
         
         let newPosition = event.target;
         if (newPosition.classList.contains("piece")) newPosition = newPosition.parentElement;
         let rank = +newPosition.dataset.rank;
         let file = +newPosition.dataset.file;
         
-        let activePiece = pieceMap.get(activePieceButton.dataset.id).object;
+        let activePiece = piecesMap.get(activePieceButton.dataset.id).object;
         
-        let move = board.updateBody(activePiece, rank, file);
+        let moveData = {piece: activePiece, rank, file};
+        let move = game.makeAMove(moveData);
         if (!move.typeOfMove) return;
         this.updateGame(move, activePieceButton, rank, file);
     }
     static castleChess960(event) {
         let rookButton = event.target;
         if (rookButton.dataset.name !== "Rook") return false;
-        let rook = pieceMap.get(rookButton.dataset.id).object
+        let rook = piecesMap.get(rookButton.dataset.id).object
         
         let kingButton = DisplayController.boardDiv.querySelector(".active");
         if (!kingButton || kingButton.dataset.name !== "King") return false;
@@ -139,28 +141,26 @@ class DisplayController {
             kingCastleFile = 2;
             rook.castleFile = 3;
         }
-        let king = pieceMap.get(kingButton.dataset.id).object;
-        
-        let castle = board.updateBody(king, king.position[0], kingCastleFile, rook);
-        console.log(castle);
+        let king = piecesMap.get(kingButton.dataset.id).object;
+        let data = {piece: king, rank: king.position[0], file: kingCastleFile, rook}
+        let castle = game.makeAMove(data);
         if (!castle.typeOfMove) return false;
         this.updateGame(castle, kingButton, king.position[0], kingCastleFile);
     }
+
+
     static restartGame() {
-        pieceMap.clear(); squareMap.clear(); blockDivMap.clear();
-
+        game.reset();
+        piecesMap.clear(); squaresMap.clear(); blockDivMap.clear();
         DisplayController.boardDiv.innerHTML = "";
-        board.resetBoard(); this.setInitialBoardDiv();
-
+        this.setInitialBoardDiv();
         DisplayController.whiteDungeonDiv.innerHTML = "";
         DisplayController.blackDungeonDiv.innerHTML = "";
-        dungeon.reset(); this.setDungeonDivs();
+        this.setDungeonDivs();
         DisplayController.whitePointsUpDiv.textContent = "";
         DisplayController.blackPointsUpDiv.textContent = "";
-        
         this.#perspective = "white";
         DisplayController.perspective.value = "white";
-        this.#activePlayer = "white";
     }
     static changeVariant(event) {
         let variant = event.target.value;
@@ -168,7 +168,6 @@ class DisplayController {
         board.variant = variant;
         this.restartGame();
     }
-    
     static changePerspective(event) {
         let perspective = event.target.value;
         if (perspective === this.#perspective) return;        
@@ -189,8 +188,7 @@ class DisplayController {
         this.updatePointsUpDivs(); this.updateLegalMoveHighlight();
         this.updateKingSaviorsHighlight(move.kingSaviors);
         this.updateBoardDiv(move.capturedPiece, move.promotion);
-        if (move.checkMate) {this.gameOver()}
-        else {this.updateActivePlayer()}
+        if (move.checkMate) this.gameOver();
     }
     static gameOver() {
         let pieceButtons = DisplayController.boardDiv.querySelectorAll(".piece");
@@ -199,29 +197,27 @@ class DisplayController {
         }
     }
 
-    static updateBoardDiv(capturedPiece, promotion) {/////////////
+    static updateBoardDiv(capturedPiece, promotion) {
         let promotionRank, promotionFile, promotionButton, pawnButton;
         if (promotion) {
             promotionRank = promotion.piece.position[0];
             promotionFile = promotion.piece.position[1];
             promotionButton = DomEl.getPieceButton(promotion.piece);
-            pawnButton = pieceMap.get(promotion.pawn.id).element;                
+            pawnButton = piecesMap.get(promotion.pawn.id).element;                
             pawnButton.parentElement.style.anchorName = `${promotion.pawn.id}`
         }
-        let capturedRank, capturedFile, capturedButton;
+        let capturedButton;
         if (capturedPiece) {
-            capturedRank = capturedPiece.lastPosition[0];
-            capturedFile = capturedPiece.lastPosition[1];
-            capturedButton = pieceMap.get(capturedPiece.id).element;
+            capturedButton = piecesMap.get(capturedPiece.id).element;
             capturedButton.style.zIndex = "0";
         }
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
-                let squareDiv = squareMap.get(board.body[i][j].id).element;
+                let squareDiv = squaresMap.get(board.body[i][j].id).element;
                 let previousPieceButton = squareDiv.children[0];
                 
                 let piece = board.body[i][j].piece; 
-                let currentPieceButton = piece ? pieceMap.get(piece.id).element : undefined;
+                let currentPieceButton = piece ? piecesMap.get(piece.id).element : undefined;
                 if (previousPieceButton === currentPieceButton) continue;
                 
                 if (promotion && i === promotionRank && j === promotionFile)
@@ -306,39 +302,34 @@ class DisplayController {
     }
     
     static updateLegalMoveHighlight() {
-        for (const square of squareMap.values()) {
+        for (const square of squaresMap.values()) {
             square.element.classList.remove("legal-move");
         }
         let activeButton = DisplayController.boardDiv.querySelector(".active");
         if (activeButton) {
-            let activePiece = pieceMap.get(activeButton.dataset.id).object;
+            let activePiece = piecesMap.get(activeButton.dataset.id).object;
             let positions = Rules.getEveryLegalMove(board.body, activePiece);
             positions.forEach(
                 position => {
                     let rank = position[0];
                     let file = position[1];
                     let square = board.body[rank][file];
-                    let squareDiv = squareMap.get(square.id).element;
+                    let squareDiv = squaresMap.get(square.id).element;
                     squareDiv.classList.add("legal-move");
                 }
             );
         }
     }
     static updateKingSaviorsHighlight(kingSaviorsArr) {
-        for (const piece of pieceMap.values()) {
+        for (const piece of piecesMap.values()) {
             piece.element.classList.remove("king-savior");
         }
         if (kingSaviorsArr && kingSaviorsArr.length > 0) {
             for (const kingSavior of kingSaviorsArr) {
-                let kingSaviorButton = pieceMap.get(kingSavior.id).element;
+                let kingSaviorButton = piecesMap.get(kingSavior.id).element;
                 kingSaviorButton.classList.add("king-savior");
             }
         }
-    }
-    static updateActivePlayer() {
-        this.#activePlayer = this.#activePlayer === "white" ? "black" : "white";
-        console.log(`
-            It is ${this.#activePlayer}'s turn.`);
     }
     // static promotion(pawn, rank, file) {
     //     let promotionDialog = DisplayController.promotionDialog;
@@ -367,7 +358,4 @@ DisplayController.setInitialBoardDiv();
 DisplayController.setListeners();
 DisplayController.setDungeonDivs();
 
-
-board.displayConsoleBoard();
-console.log(`
-    It is white's turn.`);
+Console.log({board: board.body, dungeon, activePlayer: game.activePlayer})

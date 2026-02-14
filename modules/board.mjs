@@ -1,17 +1,12 @@
-import { Rules } from "./board-interactions.mjs";
 import { Pawn, Bishop, Knight, Rook, Queen, King, piecesMap, rooksMap } from "./pieces.mjs";
-import { Move, listOfMoves } from "./moves.mjs";
-import { dungeon } from "./dungeon.mjs";
 
 
-const squaresMap = new Map();
 class Square {
     constructor(color, rank, file) {
         this.color = color;
         this.rank = rank;
         this.file = file;
         this.id = crypto.randomUUID();
-        squaresMap.set(this.id, this);
     }
 }
 
@@ -114,60 +109,11 @@ class Board {
         if (promotion) this.points[promotion.piece.color] += promotion.piece.points - 1;
     }
 
-    updateBody(piece, rank, file, rook) {
-        let typeOfMove = rook ?
-            Rules.castle(this.body, piece, rank, file, rook)
-            : Rules.legalMove(this.body, piece, rank, file);
-        if (!typeOfMove) return {};
-        
-        let movedPieces = [piece];   let capturedPiece, promotion;
-
-        if (typeOfMove === "move" || typeOfMove === "capture") {
-            capturedPiece = this.body[rank][file].piece;
-            delete this.body[piece.position[0]][piece.position[1]].piece;
-
-            promotion = Rules.promote(piece, rank, file);
-            if (promotion) piece = promotion.piece;
-
-            this.body[rank][file].piece = piece;
-        } else
-
-        if (typeOfMove === "castle") {
-            let rook = piece.getRookForCastle(file);
-
-            delete this.body[piece.position[0]][piece.position[1]].piece;
-            delete this.body[rook.position[0]][rook.position[1]].piece;
-            this.body[rank][file].piece = piece;
-            this.body[rank][rook.castleFile].piece = rook;
-
-            rook.update(rank, rook.castleFile);
-            movedPieces.push(rook);
-        }
-
-        if (typeOfMove === "enPassant") {
-            capturedPiece = listOfMoves[listOfMoves.length - 1].movedPieces[0];
-
-            delete this.body[piece.position[0]][piece.position[1]].piece;
-            this.body[rank][file].piece = piece;
-            delete this.body[capturedPiece.position[0]][capturedPiece.position[1]].piece;
-        }
-
-        piece.update(rank, file);
-        if (capturedPiece) capturedPiece.update(piece.color, "dungeon");
-        this.updatePoints(capturedPiece, promotion);
-        let status = Rules.checkForCheckMate(this.body, piece);
-        dungeon.update(capturedPiece, promotion);
-        let move = new Move(this.body, typeOfMove, movedPieces, capturedPiece, promotion, status);
-        console.log(move);/////////////////console
-        this.displayConsoleBoard();////////console
-        console.log(dungeon);//////////////console
-        return move;
-    }
-
-    resetBoard() {
+    reset() {
         piecesMap.clear();
         rooksMap.get("white").length = 0;
         rooksMap.get("black").length = 0;
+        this.points.white = this.points.black = 39;
         for (const rank of board.body) {
             for (const square of rank) {
                 delete square.piece;
@@ -176,24 +122,7 @@ class Board {
         if (this.variant === "classical") this.setClassicalPositions();
         if (this.variant === "chess-960") this.setChess960Positions();
     }
-
-    displayConsoleBoard() { //Just to check on the console easily;
-        let consoleBoard = [];
-        this.body.forEach(rank => {
-            let consoleRank = [];
-
-            rank.forEach(square => {
-                let consoleSquare = square.piece? 
-                    `${square.piece.color[0].toUpperCase()}-${square.piece.name.slice(0,2)}` 
-                    : `--${square.color[0]}-`;
-                consoleRank.push(consoleSquare);
-            });
-
-            consoleBoard.push(consoleRank);
-        });
-        console.log(consoleBoard);
-    }
 }
 const board = new Board();
 
-export { board, squaresMap }
+export { board }

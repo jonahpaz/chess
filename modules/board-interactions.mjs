@@ -32,13 +32,17 @@ class Rules {
     }
     static castle(board, king, rank, file, rook) {
         if (king.initialPosition !== king.position) return false;
-        let pieceInFinalKingPosition = board[rank][file].piece;
+
+        let pieceInFinalKingPosition = board[rank][file].piece;//necessary for Chess-960
         if (pieceInFinalKingPosition && pieceInFinalKingPosition !== rook 
             && pieceInFinalKingPosition !== king) return false;
 
         rook = rook ? rook : king.getRookForCastle(file);
         if (rook.position !== rook.initialPosition) return false;
-        if (board[rank][rook.position[1]].piece !== rook) return false;
+
+        let pieceInFinalRookPosition = board[rank][rook.castleFile].piece;//necessary for Chess-960
+        if (pieceInFinalRookPosition && pieceInFinalRookPosition !== rook 
+            && pieceInFinalRookPosition !== king) return false;
 
         delete board[rook.position[0]][rook.position[1]].piece;
         let obstaculesForKing = this.thereAreObstacules(board, king, rank, file);

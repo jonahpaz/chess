@@ -2,25 +2,24 @@ import { Knight, Pawn, piecesMap } from "./pieces.mjs";
 
 const listOfMoves = [];
 class Move {
-    constructor(previousBoard, typeOfMove, movedPiecesArr, capturedPiece, promotion, statusObj) {
-        movedPiecesArr = movedPiecesArr ? movedPiecesArr : [];
-        this.activePlayer = movedPiecesArr[0].color;
+    constructor(data) {
+        data.movedPieces = data.movedPieces ? data.movedPieces : [];
+        this.activePlayer = data.movedPieces[0].color;
         this.previousBoardSkeleton = 
-            previousBoard ? this.getBoardSkeleton(previousBoard) : undefined;
+            data.board ? this.getBoardSkeleton(data.board) : undefined;
         // this.previousDungeonSkeleton = this.getDungeonSkeleton(previousDungeon);
         // also need to add previousDungeon parameter
         //first gotta finish defining the dungeon logic
 
-        this.typeOfMove = typeOfMove;
-        this.movedPieces = movedPiecesArr;
-        this.capturedPiece = capturedPiece;
-        this.promotion = promotion;
+        this.typeOfMove = data.typeOfMove;
+        this.movedPieces = data.movedPieces;
+        this.capturedPiece = data.capturedPiece;
+        this.promotion = data.promotion;
 
-        statusObj = statusObj ? statusObj : {check: false, kingSaviors: [], checkMate: false};
-        this.check = statusObj.check;
-        this.kingSaviors = [];
-        this.kingSaviors.push(...statusObj.kingSaviors);
-        this.checkMate = statusObj.checkMate;
+        data.status = data.status ? data.status : {check: false, kingSaviors: [], checkMate: false};
+        this.check = data.status.check;
+        this.kingSaviors = [...data.status.kingSaviors];
+        this.checkMate = data.status.checkMate;
 
         //this.name =this.getName(typeOfMove, movedPiecesArr, promotion, statusObj); 
         //Later, when I finish dungeons stuff
